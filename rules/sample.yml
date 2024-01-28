@@ -1,0 +1,13 @@
+#http:
+#  routers:
+#    hello:
+#      rule: Host(`thismachine.magicDNS.ts.net`)
+#      service: staticService
+#      tls:
+#        certResolver: tailscale
+
+#  services:
+#    staticService:
+#      loadBalancer:
+#        servers:
+#        - url: "http://192.168.100.1:3000"

@@ -1,0 +1,57 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: traefik:v3.0
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.file.directory=/etc/traefik/rules
+      - --providers.file.watch=true
+      - --certificatesresolvers.tailscale.tailscale=true
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --log.filePath=/logs/traefik.log
+      - --log.level=debug
+      - --log.format=common
+      - --accesslog=true
+      - --accesslog.filepath=/logs/access.log
+      - --accesslog.format=common
+      - --accesslog.fields.names.StartUTC=drop
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock
+      - $PWD/rules:/etc/traefik/rules
+      - $PWD/letsencrypt:/letsencrypt
+      - $PWD/logs:/logs
+    environment:
+      - TZ=Europe/Bucharest
+  whoami:
+    # A container that exposes an API to show its IP address
+    image: traefik/whoami
+    command:
+      - --port=2001
+    labels:
+      - traefik.enable=true
+      # Expose custom container port 2001
+      - traefik.http.services.whoami.loadbalancer.server.port=2001
+
+      # For path /whoami use default traefik certificate
+      - traefik.http.routers.whoamipath.rule=Path(`/whoami`)
+      - traefik.http.routers.whoamipath.tls=true
+
+      # For my.example.com use letsencypt
+      #- traefik.http.routers.whoamihost.rule=Host(`my.example.com`)
+      #- traefik.http.routers.whoamihost.tls=true
+      #- traefik.http.routers.whoamihost.tls.certresolver=letsencrypt
+
